@@ -30,4 +30,4 @@ class Net(nn.Module):
         x = self.fc2(x)
         return x 
 
-#test and softmax
+#test 
