@@ -1,38 +1,39 @@
 import torch
 import torch.nn as nn
-import flwr as fl
+import torch.nn.functional as F
+from torchvision.transforms import Compose,ToTensor,Normalize
+from torch.utils.data import DataLoader
+from torchvision.datasets import MNIST
 
 DEVICE = torch.device("cpu")  # Try "cuda" to train on GPU
-print(
-    f"Training on {DEVICE} using PyTorch {torch.__version__} and Flower {fl.__version__}"
-)
-
 
 class Net(nn.Module):
     def __init__(self) -> None:
         super(Net, self).__init__()
         # 2 Convolution Layers
         self.conv1 = nn.Conv2d(1, 128, 5)
-        self.pool1 = nn.MaxPool2d(kernel_size=2)
+        self.pool = nn.MaxPool2d(kernel_size=2)
         
         self.conv2 = nn.Conv2d(128, 64, 3)
-        self.pool2 = nn.MaxPool2d(kernel_size=2)
 
         # Fully connected layer
-        self.fc1 = nn.Linear(64 * 4 * 4, 128) 
+        self.fc1 = nn.Linear(64 * 5 * 5, 128) 
         self.relu = nn.ReLU()
 
         # Output Layer
         self.fc2 = nn.Linear(128, 62)
-        self.soft_max = nn.Softmax(1)
+        #self.soft_max = nn.Softmax(dim=1)
         
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.pool1(self.relu(self.conv1(x)))
-        x = self.pool2(self.relu(self.conv2(x)))
-        x = x.view(-1, 64 * 4 * 4)
+        
+        x = self.pool(self.relu(self.conv1(x)))
+        x = self.pool(self.relu(self.conv2(x)))
+        
+        x = x.view(-1, 64 * 5 * 5)
         
         x = self.relu(self.fc1(x))
         x = self.fc2(x)
+        
         return x 
 
 def train(net, trainloader, epochs: int, verbose=False):
@@ -44,8 +45,10 @@ def train(net, trainloader, epochs: int, verbose=False):
         correct, total, epoch_loss = 0, 0, 0.0
         for images, labels in trainloader:
             images, labels = images.to(DEVICE), labels.to(DEVICE)
+            
             optimizer.zero_grad()
             outputs = net(images)
+            
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
@@ -75,3 +78,21 @@ def test(net, testloader):
     loss /= len(testloader.dataset)
     accuracy = correct / total
     return loss, accuracy
+
+def load_data():
+    trf = Compose([ToTensor(),Normalize((0.1307,), (0.3081,))])
+    trainset = MNIST("./data",train=True,download=True,transform=trf)
+    testset =  MNIST("./data",train=False,download=True,transform=trf)
+    return DataLoader(trainset,batch_size=32,shuffle=True), DataLoader(testset)
+
+def load_model():
+    return Net().to(DEVICE)
+
+
+
+if __name__ == "__main__":
+    net = load_model()
+    trainloader,testloader = load_data()
+    train(net,trainloader,epochs=5,verbose=True)
+    loss,accuracy = test(net,testloader=testloader)
+    print(f"Loss: {loss:.5f}, Accuracy: {accuracy:.3f}")

@@ -4,23 +4,67 @@
 # Sending data updates to the proxy.
 from collections import OrderedDict
 from typing import List
+from matplotlib import pyplot as plt
 import numpy as np
 import torch
+from torch.utils.data import DataLoader, SubsetRandomSampler,Dataset
+from torchvision.transforms import Compose,ToTensor,Normalize
+from torchvision import datasets
 
 import flwr as fl
+from flwr_datasets import FederatedDataset
+from Model import test, train,load_model
 
-from Model import DEVICE, Net, test, train
+def dataset_partitioner(dataset, batch_size, client_id, number_of_clients):
+    # Set the seed so we are sure to generate the same global batches
+    # indices across all clients
+    np.random.seed(123)
 
-def get_parameters(net) -> List[np.ndarray]:
-    return [val.cpu().numpy() for _, val in net.state_dict().items()]
+    # Get the data corresponding to this client
+    dataset_size = len(dataset)
+    nb_samples_per_clients = dataset_size // number_of_clients
+    dataset_indices = list(range(dataset_size))
+    np.random.shuffle(dataset_indices)
+
+    # Get starting and ending indices w.r.t CLIENT_ID
+    start_ind = client_id * nb_samples_per_clients
+    end_ind = start_ind + nb_samples_per_clients
+    data_sampler = SubsetRandomSampler(dataset_indices[start_ind:end_ind])
+    data_loader = torch.utils.data.DataLoader(
+        dataset, batch_size=batch_size, shuffle=False, sampler=data_sampler
+    )
+    return data_loader
 
 
-def set_parameters(net, parameters: List[np.ndarray]):
-    params_dict = zip(net.state_dict().keys(), parameters)
-    state_dict = OrderedDict({k: torch.Tensor(v) for k, v in params_dict})
-    net.load_state_dict(state_dict, strict=True)
+def load_data(node_id):
+    """Load partition MNIST data."""
+    pytorch_transforms = Compose([ToTensor(),Normalize((0.1307,), (0.3081,))])
+    train_dataset = datasets.MNIST("./data",train=True,download=True,transform=pytorch_transforms)
+    test_dataset = datasets.MNIST("./data",train=False,download=True,transform=pytorch_transforms)
+    # Divide data on each node: 80% train, 20% test
     
-class FlowerClient(fl.client.NumPyClient):
+
+    
+    trainloader = dataset_partitioner(dataset=train_dataset,batch_size=32,client_id=node_id,number_of_clients=3)
+    testloader = dataset_partitioner(dataset=test_dataset,batch_size=32,client_id=node_id,number_of_clients=3)
+
+    return trainloader, testloader
+
+DEVICE = torch.device("cpu")  # Try "cuda" to train on GPU
+print(
+    f"Training on {DEVICE} using PyTorch {torch.__version__} and Flower {fl.__version__}"
+)
+
+net = load_model()
+trainloader,testloader = load_data(0)
+train_iter = iter(trainloader)
+sample_images, sample_labels = next(train_iter)
+print("Sample Batch Shape - Images:", sample_images.shape)
+print("Sample Batch Shape - Labels:", sample_labels.shape)
+
+train(net,trainloader=trainloader,epochs=5)
+ 
+"""class FlowerClient(fl.client.NumPyClient):
     def __init__(self, net, trainloader, valloader):
         self.net = net
         self.trainloader = trainloader
@@ -38,19 +82,17 @@ class FlowerClient(fl.client.NumPyClient):
         set_parameters(self.net, parameters)
         loss, accuracy = test(self.net, self.valloader)
         return float(loss), len(self.valloader), {"accuracy": float(accuracy)}
-    
 
-def client_fn(cid: str) -> FlowerClient:
-    """Create a Flower client representing a single organization."""
+def get_parameters(net) -> List[np.ndarray]:
+    return [val.cpu().numpy() for _, val in net.state_dict().items()]
 
-    # Load model
-    net = Net().to(DEVICE)
 
-    # Load data (CIFAR-10)
-    # Note: each client gets a different trainloader/valloader, so each client
-    # will train and evaluate on their own unique data
-    trainloader = trainloaders[int(cid)]
-    valloader = valloaders[int(cid)]
+def set_parameters(net, parameters: List[np.ndarray]):
+    params_dict = zip(net.state_dict().keys(), parameters)
+    state_dict = OrderedDict({k: torch.Tensor(v) for k, v in params_dict})
+    net.load_state_dict(state_dict, strict=True)
 
-    # Create a  single Flower client representing a single organization
-    return FlowerClient(net, trainloader, valloader)
+fl.client.start_numpy_client(
+    server_address="127.0.0.1:8080",
+    client=FlowerClient(),
+)"""

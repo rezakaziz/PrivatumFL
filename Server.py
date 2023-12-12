@@ -2,6 +2,6 @@
 # Decrypt 
 # Do the aggregation step.
 
-class Server:
-    def __init__(self):
-        pass
+import flwr as fl
+
+fl.server.start_server(config=fl.server.ServerConfig(num_rounds=3))
