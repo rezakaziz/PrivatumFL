@@ -2,12 +2,12 @@
 # Local Training.
 # Encrypting the updates with paillier scheme and use the public key of the server.
 # Sending data updates to the proxy.
+import sys
 from collections import OrderedDict
 from typing import List
-from matplotlib import pyplot as plt
 import numpy as np
 import torch
-from torch.utils.data import DataLoader, SubsetRandomSampler,Dataset
+from torch.utils.data import SubsetRandomSampler
 from torchvision.transforms import Compose,ToTensor,Normalize
 from torchvision import datasets
 
@@ -39,14 +39,14 @@ def dataset_partitioner(dataset, batch_size, client_id, number_of_clients):
 def load_data(node_id):
     """Load partition MNIST data."""
     pytorch_transforms = Compose([ToTensor(),Normalize((0.1307,), (0.3081,))])
-    train_dataset = datasets.MNIST("./data",train=True,download=True,transform=pytorch_transforms)
-    test_dataset = datasets.MNIST("./data",train=False,download=True,transform=pytorch_transforms)
+    train_dataset = datasets.EMNIST("./data",split="byclass",train=True,download=True,transform=pytorch_transforms)
+    test_dataset = datasets.EMNIST("./data",split="byclass",train=False,download=True,transform=pytorch_transforms)
     # Divide data on each node: 80% train, 20% test
     
 
     
-    trainloader = dataset_partitioner(dataset=train_dataset,batch_size=32,client_id=node_id,number_of_clients=3)
-    testloader = dataset_partitioner(dataset=test_dataset,batch_size=32,client_id=node_id,number_of_clients=3)
+    trainloader = dataset_partitioner(dataset=train_dataset,batch_size=32,client_id=node_id,number_of_clients=200)
+    testloader = dataset_partitioner(dataset=test_dataset,batch_size=32,client_id=node_id,number_of_clients=200)
 
     return trainloader, testloader
 
@@ -55,16 +55,8 @@ print(
     f"Training on {DEVICE} using PyTorch {torch.__version__} and Flower {fl.__version__}"
 )
 
-net = load_model()
-trainloader,testloader = load_data(0)
-train_iter = iter(trainloader)
-sample_images, sample_labels = next(train_iter)
-print("Sample Batch Shape - Images:", sample_images.shape)
-print("Sample Batch Shape - Labels:", sample_labels.shape)
-
-train(net,trainloader=trainloader,epochs=5)
  
-"""class FlowerClient(fl.client.NumPyClient):
+class FlowerClient(fl.client.NumPyClient):
     def __init__(self, net, trainloader, valloader):
         self.net = net
         self.trainloader = trainloader
@@ -92,7 +84,25 @@ def set_parameters(net, parameters: List[np.ndarray]):
     state_dict = OrderedDict({k: torch.Tensor(v) for k, v in params_dict})
     net.load_state_dict(state_dict, strict=True)
 
+
+
+
+    
+node_id = 0
+if len(sys.argv) > 1:
+    node_id = int(sys.argv[1])
+
+print("node : ", node_id)
+net = load_model()
+trainloader,testloader = load_data(node_id)
+train_iter = iter(trainloader)
+sample_images, sample_labels = next(train_iter)
+print("Sample Batch Shape - Images:", sample_images.shape)
+print("Sample Batch Shape - Labels:", sample_labels.shape)
+
+
+
 fl.client.start_numpy_client(
     server_address="127.0.0.1:8080",
-    client=FlowerClient(),
-)"""
+    client=FlowerClient(net=net,trainloader=trainloader,valloader=testloader),
+)
