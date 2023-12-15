@@ -11,7 +11,7 @@ class Net(nn.Module):
     def __init__(self) -> None:
         super(Net, self).__init__()
         # 2 Convolution Layers
-        self.conv1 = nn.Conv2d(1, 128, 5)
+        self.conv1 = nn.Conv2d(1, 128,kernel_size=5)
         self.pool = nn.MaxPool2d(kernel_size=2)
         
         self.conv2 = nn.Conv2d(128, 64, 3)
@@ -22,7 +22,8 @@ class Net(nn.Module):
 
         # Output Layer
         self.fc2 = nn.Linear(128, 62)
-        #self.soft_max = nn.Softmax(dim=1)
+        #self.soft_max = nn.Softmax(dim=-1)
+        
         
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         
