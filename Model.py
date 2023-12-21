@@ -6,34 +6,43 @@ from torch.utils.data import DataLoader
 from torchvision.datasets import MNIST
 
 DEVICE = torch.device("cpu")  # Try "cuda" to train on GPU
-
+TEST = True
 class Net(nn.Module):
     def __init__(self) -> None:
         super(Net, self).__init__()
-        # 2 Convolution Layers
-        self.conv1 = nn.Conv2d(1, 128,kernel_size=5)
-        self.pool = nn.MaxPool2d(kernel_size=2)
-        
-        self.conv2 = nn.Conv2d(128, 64, 3)
+        if not TEST:
+            # 2 Convolution Layers
+            self.conv1 = nn.Conv2d(1, 128,kernel_size=5)
+            self.pool = nn.MaxPool2d(kernel_size=2)
+            
+            self.conv2 = nn.Conv2d(128, 64, 3)
 
-        # Fully connected layer
-        self.fc1 = nn.Linear(64 * 5 * 5, 128) 
-        self.relu = nn.ReLU()
+            # Fully connected layer
+            self.fc1 = nn.Linear(64 * 5 * 5, 128) 
+            self.relu = nn.ReLU()
 
-        # Output Layer
-        self.fc2 = nn.Linear(128, 62)
-        #self.soft_max = nn.Softmax(dim=-1)
-        
+            # Output Layer
+            self.fc2 = nn.Linear(128, 62)
+            #self.soft_max = nn.Softmax(dim=-1)
+        else : 
+            self.conv1 = nn.Conv2d(1,1,kernel_size=5)
+            self.pool = nn.MaxPool2d(kernel_size=4)
+            self.fc1 = nn.Linear(1*6*6,62)
+            self.relu = nn.ReLU()
         
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        
-        x = self.pool(self.relu(self.conv1(x)))
-        x = self.pool(self.relu(self.conv2(x)))
-        
-        x = x.view(-1, 64 * 5 * 5)
-        
-        x = self.relu(self.fc1(x))
-        x = self.fc2(x)
+        if not TEST: 
+            x = self.pool(self.relu(self.conv1(x)))
+            x = self.pool(self.relu(self.conv2(x)))
+            
+            x = x.view(-1, 64 * 5 * 5)
+            
+            x = self.relu(self.fc1(x))
+            x = self.fc2(x)
+        else : 
+            x = self.pool(self.relu(self.conv1(x)))
+            x = x.view(-1, 1 * 6 * 6)
+            x = self.fc1(x)
         
         return x 
 

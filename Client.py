@@ -21,9 +21,20 @@ from torchsummary import summary
 ######################################################
 
 ### Imports for federated flower #####################
-import flwr as fl
+import flwr_modif as fl
 from Model import test, train,load_model
 ######################################################
+
+### Import Phe
+from phe import paillier
+import json 
+with open('./Keys/public_key.json', 'r') as openfile:
+ 
+    # Reading from json file
+    pk = json.load(openfile)
+ 
+public_key = paillier.PaillierPublicKey(n=int(pk['n']))
+############################################
 DEVICE = torch.device("cpu")  # Try "cuda" to train on GPU
 
 def dataset_partitioner(dataset, batch_size, client_id, number_of_clients):
@@ -102,15 +113,16 @@ class FlowerClient(fl.client.NumPyClient):
         print(summary(self.net,(1,28,28),batch_size=32))
         self.trainloader = trainloader
         self.valloader = valloader
+        
 
-    def get_parameters(self, config):
+    def get_parameters(self, config):       
         return get_parameters(self.net)
 
     def fit(self, parameters, config):
         set_parameters(self.net, parameters)
         train(self.net, self.trainloader, epochs=1)
-        
-        return get_parameters(self.net), len(self.trainloader), {}
+        enc = get_encrypted_parameters(self.net)        
+        return enc, len(self.trainloader),  {} # Need to modify this one 
 
     def evaluate(self, parameters, config):
         set_parameters(self.net, parameters)
@@ -118,11 +130,26 @@ class FlowerClient(fl.client.NumPyClient):
         return float(loss), len(self.valloader), {"accuracy": float(accuracy)}
 
 def get_parameters(net) -> List[np.ndarray]:
-    test = [val.cpu().numpy() for _, val in net.state_dict().items()]
-    return test
+    return [val.cpu().numpy() for _, val in net.state_dict().items()]
 
+# add a function get_encrypted parameters
+def get_encrypted_parameters(net):
+    parameters = get_parameters(net)
+    encrypted_parameters = []
+    for parameter in parameters: 
+            shape = parameter.shape
+            encrypted_parameter = []
+            
+            for i in parameter.flatten():
+                encrypted_parameter.append(public_key.encrypt(float(i)))
+            encrypted_parameter = np.array(encrypted_parameter)
+            encrypted_parameter = encrypted_parameter.reshape(shape)
+            print("Encrypted Parameter shape ",encrypted_parameter.shape," Parameter shape",shape)
+            encrypted_parameters.append(encrypted_parameter)
+    return encrypted_parameters
 
 def set_parameters(net, parameters: List[np.ndarray]):
+    print(type(parameters))
     params_dict = zip(net.state_dict().keys(), parameters)
     state_dict = OrderedDict({k: torch.Tensor(v) for k, v in params_dict})
     net.load_state_dict(state_dict, strict=True)
