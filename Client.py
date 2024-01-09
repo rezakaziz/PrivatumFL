@@ -121,6 +121,7 @@ class FlowerClient(fl.client.NumPyClient):
     def fit(self, parameters, config):
         set_parameters(self.net, parameters)
         train(self.net, self.trainloader, epochs=1)
+        # multiply the parameters by len(self.trainloader)
         enc = get_encrypted_parameters(self.net)        
         return enc, len(self.trainloader),  {} # Need to modify this one 
 

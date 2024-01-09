@@ -1,6 +1,7 @@
 from logging import WARNING
+import random
 from typing import Callable, Dict, List, Optional, Tuple, Union
-
+import numpy as np
 from flwr_modif.common import (
     EvaluateIns,
     EvaluateRes,
@@ -196,10 +197,33 @@ class FedAvgModified(Strategy):
         # Return client/config pairs
         return [(client, evaluate_ins) for client in clients]
 
+    def swap(self,layer1,layer2):
+        for i in range(layer1.shape[0]):
+            if random.random() < 0.5:
+                temp = layer1[i]
+                layer1[i] = layer2[i]
+                layer2[i] = temp
 
-    # Add shuffling 
-    # Add DP 
-    # Decrypt homomorphic encryption 
+        return layer1,layer2
+    
+    def shuffle_weights(self,weights):
+        nb_clients =len(weights)
+        nb_layers = len(weights[0][0])
+        print("Weights length", nb_clients)
+        print("Weights shape ", nb_layers)
+        
+        
+        # generate permutations
+        permutations = np.random.permutation(nb_clients)
+        for i in range(nb_clients) :
+            for j in range(len(weights[i][0])):
+                shape = weights[i][0][j].shape
+                l1,l2 = self.swap(weights[i][0][j].flatten(),weights[permutations[i]][0][j].flatten())
+
+                weights[i][0][j] = l1.copy().reshape(shape)
+                weights[permutations[i]][0][j] = l2.copy().reshape(shape)
+
+        return weights
 
     def aggregate_fit(
         self,
@@ -215,12 +239,20 @@ class FedAvgModified(Strategy):
             return None, {}
 
         # Convert results
-        
         weights_results = [
-            (encrypted_parameters_to_ndarrays(fit_res.parameters,self.private_key), fit_res.num_examples)
+            (parameters_to_ndarrays(fit_res.parameters), fit_res.num_examples)
             for _, fit_res in results
         ]
+        ##### Do the shuffling 
+        print("Weights shape 1 : ", weights_results[0][0][0],weights_results[1][0][0])
+        shuffled_weights = self.shuffle_weights(weights_results)
+        print("Weights shape 2 : ", shuffled_weights[0][0][0],shuffled_weights[1][0][0])
+        ##### Adding noise
+        noise_type = "Gauss"
+        shuffled_noised_weights = self.add_noise(shuffled_weights,noise_type)
         ##### Decrypting 
+        weights_resultsAAAAA = self.decrypt_parameters(shuffled_noised_weights,self.private_key)
+        
         
         parameters_aggregated = ndarrays_to_parameters(aggregate(weights_results))
 

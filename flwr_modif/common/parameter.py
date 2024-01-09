@@ -33,13 +33,15 @@ def parameters_to_ndarrays(parameters: Parameters) -> NDArrays:
     """Convert parameters object to NumPy ndarrays."""
     return [bytes_to_ndarray(tensor) for tensor in parameters.tensors]
 
+#change it to do the decryption and the noise adding 
 def encrypted_parameters_to_ndarrays(parameters: Parameters,private_key)-> NDArrays:
     """Convert Encrypted parameters object to Numpy ndarrays"""
     print("Decryption")
     parameters_ndarrays = parameters_to_ndarrays(parameters)
-    # Shuffling 
     # Add noise 
     return [nd_array_decrypt(tensor,private_key=private_key) for tensor in parameters_ndarrays]
+
+
 
 def nd_array_decrypt(tensor: NDArray, private_key): 
     shape = tensor.shape
