@@ -150,7 +150,7 @@ def get_encrypted_parameters(net):
     return encrypted_parameters
 
 def set_parameters(net, parameters: List[np.ndarray]):
-    print(type(parameters))
+    print(parameters[0][0])
     params_dict = zip(net.state_dict().keys(), parameters)
     state_dict = OrderedDict({k: torch.Tensor(v) for k, v in params_dict})
     net.load_state_dict(state_dict, strict=True)

@@ -224,6 +224,32 @@ class FedAvgModified(Strategy):
                 weights[permutations[i]][0][j] = l2.copy().reshape(shape)
 
         return weights
+    
+    def nb_parameters(self,weights):
+        return sum([layer.flatten().shape[0] for layer in weights[0][0]])
+
+    def add_noise(self,weights,noise_type):
+        rngs = [np.random.default_rng() for i in range(self.nb_parameters(weights))]
+        loc, scale = 0., 1.
+        noises = np.array([rnf.laplace(loc,scale,len(weights)) for rnf in rngs])
+        print(noises)
+        
+        model_id = 0
+        for model in weights:
+            i = 0
+            for layer in model[0]:
+                l = layer.flatten()
+                shape = layer.shape
+                noise  = noises[i:i+l.shape[0],model_id]
+                layer = (l + noise).copy().reshape(shape)
+                i = i + l.shape[0]
+            model_id = model_id +1 
+
+
+        
+    def decrypt_parameters(self,weights,private_key):
+        pass
+
 
     def aggregate_fit(
         self,
@@ -244,16 +270,19 @@ class FedAvgModified(Strategy):
             for _, fit_res in results
         ]
         ##### Do the shuffling 
-        print("Weights shape 1 : ", weights_results[0][0][0],weights_results[1][0][0])
+        
         shuffled_weights = self.shuffle_weights(weights_results)
-        print("Weights shape 2 : ", shuffled_weights[0][0][0],shuffled_weights[1][0][0])
+        
         ##### Adding noise
         noise_type = "Gauss"
         shuffled_noised_weights = self.add_noise(shuffled_weights,noise_type)
         ##### Decrypting 
         weights_resultsAAAAA = self.decrypt_parameters(shuffled_noised_weights,self.private_key)
         
-        
+        weights_results = [
+            (encrypted_parameters_to_ndarrays(fit_res.parameters,self.private_key), fit_res.num_examples)
+            for _, fit_res in results
+        ]
         parameters_aggregated = ndarrays_to_parameters(aggregate(weights_results))
 
         # Aggregate custom metrics if aggregation fn was provided

@@ -38,7 +38,7 @@ def encrypted_parameters_to_ndarrays(parameters: Parameters,private_key)-> NDArr
     """Convert Encrypted parameters object to Numpy ndarrays"""
     print("Decryption")
     parameters_ndarrays = parameters_to_ndarrays(parameters)
-    # Add noise 
+    
     return [nd_array_decrypt(tensor,private_key=private_key) for tensor in parameters_ndarrays]
 
 
