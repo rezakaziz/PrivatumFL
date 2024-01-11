@@ -15,7 +15,7 @@ from flwr_modif.common import (
     parameters_to_ndarrays,
 )
 from flwr_modif.common.logger import log
-from flwr_modif.common.parameter import encrypted_parameters_to_ndarrays
+from flwr_modif.common.parameter import encrypted_parameters_to_ndarrays, nd_array_decrypt
 from flwr_modif.server.client_manager import ClientManager
 from flwr_modif.server.client_proxy import ClientProxy
 
@@ -208,10 +208,8 @@ class FedAvgModified(Strategy):
     
     def shuffle_weights(self,weights):
         nb_clients =len(weights)
-        nb_layers = len(weights[0][0])
-        print("Weights length", nb_clients)
-        print("Weights shape ", nb_layers)
         
+               
         
         # generate permutations
         permutations = np.random.permutation(nb_clients)
@@ -232,8 +230,7 @@ class FedAvgModified(Strategy):
         rngs = [np.random.default_rng() for i in range(self.nb_parameters(weights))]
         loc, scale = 0., 1.
         noises = np.array([rnf.laplace(loc,scale,len(weights)) for rnf in rngs])
-        print(noises)
-        
+                
         model_id = 0
         for model in weights:
             i = 0
@@ -244,11 +241,12 @@ class FedAvgModified(Strategy):
                 layer = (l + noise).copy().reshape(shape)
                 i = i + l.shape[0]
             model_id = model_id +1 
+        return weights
 
 
         
-    def decrypt_parameters(self,weights,private_key):
-        pass
+    def decrypt_parameters(self,weights,private_key):      
+        return [([nd_array_decrypt(tensor,private_key=private_key) for tensor in weight[0]],weight[1]) for weight in weights]
 
 
     def aggregate_fit(
@@ -277,12 +275,9 @@ class FedAvgModified(Strategy):
         noise_type = "Gauss"
         shuffled_noised_weights = self.add_noise(shuffled_weights,noise_type)
         ##### Decrypting 
-        weights_resultsAAAAA = self.decrypt_parameters(shuffled_noised_weights,self.private_key)
+        weights_results = self.decrypt_parameters(shuffled_noised_weights,self.private_key)
         
-        weights_results = [
-            (encrypted_parameters_to_ndarrays(fit_res.parameters,self.private_key), fit_res.num_examples)
-            for _, fit_res in results
-        ]
+        
         parameters_aggregated = ndarrays_to_parameters(aggregate(weights_results))
 
         # Aggregate custom metrics if aggregation fn was provided

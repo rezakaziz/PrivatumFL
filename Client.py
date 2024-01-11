@@ -145,12 +145,11 @@ def get_encrypted_parameters(net):
                 encrypted_parameter.append(public_key.encrypt(float(i)))
             encrypted_parameter = np.array(encrypted_parameter)
             encrypted_parameter = encrypted_parameter.reshape(shape)
-            print("Encrypted Parameter shape ",encrypted_parameter.shape," Parameter shape",shape)
             encrypted_parameters.append(encrypted_parameter)
     return encrypted_parameters
 
 def set_parameters(net, parameters: List[np.ndarray]):
-    print(parameters[0][0])
+    
     params_dict = zip(net.state_dict().keys(), parameters)
     state_dict = OrderedDict({k: torch.Tensor(v) for k, v in params_dict})
     net.load_state_dict(state_dict, strict=True)
