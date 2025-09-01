@@ -110,7 +110,7 @@ def load_femnist(writer_id):
 class FlowerClient(fl.client.NumPyClient):
     def __init__(self, net, trainloader, valloader):
         self.net = net
-        print(summary(self.net,(1,28,28),batch_size=32))
+        #print(summary(self.net,(1,28,28),batch_size=32))
         self.trainloader = trainloader
         self.valloader = valloader
         
