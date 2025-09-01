@@ -27,15 +27,17 @@ It includes custom modifications of the **Flower (flwr)** framework to support:
 
 
 ## Project Structure
+```text
 PrivatumFL/
-├── Client.py # Federated learning client code
-├── Server.py # Central server code
-├── Model.py # PyTorch model definitions
-├── fedavg_he_dp.py # FedAvg with DP and encryption
-├── flwr_modif/ # Modified Flower framework
-│ └── ... # Submodules (client, server, common, proto, etc.)
-├── Keys/ # Keys/secrets storage for HE
+├── Client.py          # Federated learning client code
+├── Server.py          # Central server code
+├── Model.py           # PyTorch model definitions
+├── fedavg_he_dp.py    # FedAvg with DP and encryption
+├── flwr_modif/        # Modified Flower framework
+│   └── ...            # Submodules (client, server, common, proto, etc.)
+├── Keys/              # Keys/secrets storage for HE
 └── .gitignore
+```
 
 ---
 
